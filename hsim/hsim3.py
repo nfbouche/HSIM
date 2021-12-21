@@ -11,6 +11,8 @@ import collections
 
 from src.config import config_data
 
+import logging
+logger = logging.getLogger()
 
 def get_version_number():
 	try:
@@ -112,21 +114,21 @@ if __name__ == "__main__":
 	if hasattr(args, "config_file"):
 		
 		if not os.path.isfile(args.config_file):
-			print("ERROR: Cannot open configuration file " + args.config_file)
+			logger.error("ERROR: Cannot open configuration file " + args.config_file)
 			sys.exit()
 		
 		config = configparser.ConfigParser()
 		config.read(args.config_file)
 		
 		if "HSIM" not in config:
-			print("ERROR: [HSIM] section not found in configuration file " + args.config_file)
+			logger.error("ERROR: [HSIM] section not found in configuration file " + args.config_file)
 			sys.exit()
 		
 		for key in config["HSIM"]:
 			value = config["HSIM"][key]
 			key = key.lower()
 			if key not in input_parameters:
-				print("ERROR: Unknown option '" +  key + "' in configuration file " + args.config_file)
+				logger.error("ERROR: Unknown option '" +  key + "' in configuration file " + args.config_file)
 				sys.exit()
 			
 			action = parameter_actions[key]
@@ -135,13 +137,13 @@ if __name__ == "__main__":
 				try:
 					value = action.type(value)
 				except:
-					print("ERROR: '" +  str(value) + "' is not a valid " + str(action.type.__name__) + " value for '" +  key + "' in configuration file " + args.config_file)
+					logger.error("ERROR: '" +  str(value) + "' is not a valid " + str(action.type.__name__) + " value for '" +  key + "' in configuration file " + args.config_file)
 					sys.exit()
 			
 			if action.choices is not None:
 				if value not in action.choices:
-					print("ERROR: Not valid value '" + str(value) + "' for '" +  key + "' in configuration file " + args.config_file)
-					print("Valid values are: {" + ", ".join(map(str, action.choices)) + "}")
+					logger.error("ERROR: Not valid value '{}' for '{}' in configuration file {} ".format(str(value),key, args.config_file))
+					logger.error("Valid values are: {" + ", ".join(map(str, action.choices)) + "}")
 					sys.exit()
 					
 			input_parameters[key] = value
@@ -166,7 +168,7 @@ if __name__ == "__main__":
 		# Check that all parameters are properly defined
 		for key, value in input_parameters.items():
 			if value is None:
-				print("ERROR: '" + key + "' input parameter is not defined")
+				logger.error("ERROR: '" + key + "' input parameter is not defined")
 				sys.exit()
 				
 	
