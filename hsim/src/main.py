@@ -55,6 +55,7 @@ def main(input_parameters):
 		
 		'extra_jitter': Residual telescope jitter. 1 or 2 x separated numbers [mas]
 		'detector_systematics': Boolean - use detector systematics
+		'detector_trim': Boolean - trim to detector size
 		'detector_tmp_path':  Directory to save interim detector files		
 		'telescope_temp': Telescope temperature [K]
 		'adr': Boolean - turn ADR on or off
@@ -319,11 +320,12 @@ def main(input_parameters):
 	#	- Thermal background
 	grating = input_parameters["grating"]
 	det_switch = input_parameters["detector_systematics"]
+	det_trim  = input_parameters["detector_trim"]
 	# Cut cubes to correct size if using detector systematics and generate detectors 
-	if det_switch == True and grating != "V+R":
+	if (det_switch == True or det_trim == True) and grating != "V+R":
 		logging.info("Trimming datacubes to correct size")
 		output_cube_spec = trim_cube(output_cube_spec, verbose=True)
-	elif det_switch == True and grating == "V+R":
+	elif (det_switch == True or det_trim == True) and grating == "V+R":
 		logging.warning("IR detector systematics selected for visibile grating. Ignoring detector systematics.")
 		det_switch = False
 	
@@ -343,7 +345,7 @@ def main(input_parameters):
 	output_back_emission = output_back_emission.astype(np.float32)
 	output_back_emission.shape = (len(output_back_emission), 1, 1)
 	output_back_emission_cube = np.zeros_like(output_cube_spec) + output_back_emission
-	if det_switch == True:
+	if (det_switch == True or det_trim == True):
 		output_back_emission_cube = trim_cube(output_back_emission_cube)
 
 	if input_parameters["ao_mode"] == "HCAO":
