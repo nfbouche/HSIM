@@ -133,9 +133,9 @@ def main(input_parameters):
 	logger.addHandler(hsimlog)
 
 	# Check that the 60x60 and 120x60 are only used with the V+R grating
-	if input_parameters["spaxel_scale"] in ["60x60", "120x60"] and input_parameters["grating"] != "V+R":
-		logging.error(input_parameters["spaxel_scale"] + ' is only available for the V+R grating. ')
-		return
+	#if input_parameters["spaxel_scale"] in ["60x60", "120x60"] and input_parameters["grating"] != "V+R":
+	#	logging.error(input_parameters["spaxel_scale"] + ' is only available for the V+R grating. ')
+	#	return
 		
 	# Get oversampling factor
 	# spectral axis
