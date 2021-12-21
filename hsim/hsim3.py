@@ -72,6 +72,7 @@ if __name__ == "__main__":
 				Parameter("zenith_seeing", "Optical 500nm atmospheric seeing FWHM at zenith [arcsec]", type=float, choices = config_data["PSD_params"]["seeings"]),
 				Parameter("air_mass", "Air mass of the observation", type=float, choices = config_data["PSD_params"]["air_masses"]),
 				Parameter("moon_illumination", "Moon fractional illumination", type=float, default = 0., choices = [0.0, 0.5, 1.0]),
+				Parameter("detector_trim", "Trimming output to IR detector shape", default = "False", choices = ["True", "False"]),
 				Parameter("detector_systematics", "FITS input cube", default="False", choices = ["True", "False"]),
 				Parameter("detector_tmp_path", "Directory to save interim detector files", default="''"),
 				Parameter("adr", "Simulate atmospheric differential refraction", default="True", choices = ["True", "False"]),
