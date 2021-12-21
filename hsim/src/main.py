@@ -88,6 +88,7 @@ def main(input_parameters):
 			Conf('Telescope temperature', 'HSM_TEMP', 'telescope_temp'),
 			Conf('Moon', 'HSM_MOON', 'moon_illumination'),
 			Conf('ADR', 'HSM_ADR', 'adr'),
+		    Conf('Trimmed', 'HSM_TRIM', 'detector_trim'),
 			Conf('Detectors', 'HSM_DET', 'detector_systematics'),
 			Conf('Seed', 'HSM_SEED', 'noise_seed'),
 			Conf('AO', 'HSM_AO', 'ao_mode'),
@@ -104,6 +105,7 @@ def main(input_parameters):
 	str2bool("debug")
 	str2bool("adr")
 	str2bool("detector_systematics")
+	str2bool("detector_trim")
 	
 	if input_parameters["detector_systematics"] == True:
 		simulation_conf.append(Conf('Detectors tmp path', 'HSM_DDIR', 'detector_tmp_path'))
