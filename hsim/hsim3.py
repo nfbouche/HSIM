@@ -62,7 +62,7 @@ if __name__ == "__main__":
 	simulation_parameters = [Parameter("input_cube", "FITS input cube"),
 				Parameter("output_dir", "Output directory"),
 				Parameter("grating", "HARMONI grating", choices = get_grating_list()),
-				Parameter("spaxel_scale", "Spaxel Scale", choices = ["4x4", "10x10", "20x20", "30x30", "30x60", "60x60", "120x60"]),
+				Parameter("spaxel_scale", "Spaxel Scale", choices = ["4x4", "10x10", "20x20", "30x30", "30x60", "60x60", "120x60", "120x120"]),
 				Parameter("exposure_time", "Exposure time [s]", type=int),
 				Parameter("n_exposures", "Number of exposures", type=int),
 				Parameter("ao_mode", "AO Mode", choices = ["LTAO", "SCAO", "HCAO", "noAO", "Airy", "User"]),
