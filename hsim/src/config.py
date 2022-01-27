@@ -68,7 +68,7 @@ config_data = {
 		  '30x30':SpaxelScaleInfo(30., 30., 6., 400),
 		  '30x60':SpaxelScaleInfo(30., 60., 6., 400),
 		  '60x60':SpaxelScaleInfo(60., 60., 6., 400),
-		  '120x60':SpaxelScaleInfo(120., 60., 6., 400)
+		  '120x60':SpaxelScaleInfo(120., 60., 6., 400),
 		  '120x120':SpaxelScaleInfo(120., 120., 6., 400)
 		  },
 	
