@@ -68,7 +68,7 @@ if __name__ == "__main__":
 				Parameter("ao_mode", "AO Mode", choices = ["LTAO", "SCAO", "HCAO", "noAO", "Airy", "User"]),
 				Parameter("user_defined_psf", "User defined PSF FITS file when ao-mode is set to User", default="''"),
 				Parameter("ao_star_hmag", "H magnitude of the LTAO AO star", type=float, default=17.5, choices = [15., 17.5, 19.]),
-				Parameter("ao_star_distance", "Distance from the HARMONI FoV center to the LTAO AO star [arcsec]", type=int, default=45, choices = [30, 45, 60]),
+				Parameter("ao_star_distance", "Distance from the HARMONI FoV center to the LTAO AO star [arcsec]", type=int, default=30, choices = [15, 30, 45]),
 				Parameter("hc_apodizer", "High-contrast apodizer", default="HSP1", choices = ["HSP1", "HSP2"]),
 				Parameter("hc_fp_mask", "High-contrast focal plane mask", default="FPM1", choices = ["FPM1"]),
 				Parameter("zenith_seeing", "Optical 500nm atmospheric seeing FWHM at zenith [arcsec]", type=float, choices = config_data["PSD_params"]["seeings"]),
@@ -79,6 +79,7 @@ if __name__ == "__main__":
 				Parameter("detector_tmp_path", "Directory to save interim detector files", default="''"),
 				Parameter("adr", "Simulate atmospheric differential refraction", default="True", choices = ["True", "False"]),
 				Parameter("telescope_temp", "Telescope temperature [K]", type=float, default = 280),
+				Parameter("fprs_temp", "FPRS temperature [C]", type=float, default = -15),
 				Parameter("extra_jitter", "Additional telescope PSF blur [mas]", type=str, default = "0"),
 				Parameter("noise_seed", "Noise random number generator seed", type=int, default = 100),
 				Parameter("n_cpus", "Number of processors", type=int, default = get_cpu_count()),
@@ -331,6 +332,7 @@ if __name__ == "__main__":
 				# Misc frame
 				panel_misc = panel_gui(parent, "Miscellaneous", 3)
 				create_field("telescope_temp", panel_misc.add_field("Telescope temperature [K]", Entry))
+				create_field("fprs_temp", panel_misc.add_field("FPRS temperature [C]", Entry))
 				create_field("extra_jitter", panel_misc.add_field("Additional jitter [mas]", Entry))
 				create_field("adr", panel_misc.add_field("ADR on/off", Checkbutton, default=1, height=1000))
 				create_field("detector_systematics", panel_misc.add_field("Detector systematics", Checkbutton))
