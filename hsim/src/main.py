@@ -668,7 +668,8 @@ def main(input_parameters):
 	#flux_cal_star_electrons = flux_cal_star_photons*channel_width*config_data["telescope"]["area"]*np.median(output_transmission)*flux_fraction_psf_core # electron/s
 	flux_cal_star_electrons = flux_cal_star_photons * channel_width * config_data["telescope"]["area"] * output_transmission * flux_fraction_psf_core  # electron/s
 
-	factor_calibration = flux_cal_star/np.median(flux_cal_star_electrons) # erg/s/cm2/um / (electron/s)
+	#factor_calibration = flux_cal_star / np.median(flux_cal_star_electrons)  # erg/s/cm2/um / (electron/s)
+	factor_calibration = flux_cal_star/flux_cal_star_electrons # erg/s/cm2/um / (electron/s)
 	
 	outFile_flux_cal_noiseless = base_filename + "_noiseless_obj_flux_cal.fits"
 	outFile_flux_cal_reduced = base_filename + "_reduced_flux_cal.fits"
