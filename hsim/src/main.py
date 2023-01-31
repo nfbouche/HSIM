@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 from scipy.signal import convolve2d
 from astropy.io import fits
 import astropy.constants as const
-from photutils import aperture_photometry, CircularAperture
+#from photutils import aperture_photometry, CircularAperture
 
 from src.config import *
 from src.init_cube import init_cube
