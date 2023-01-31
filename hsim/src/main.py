@@ -342,7 +342,8 @@ def main(input_parameters):
 				sim_detector(input_parameters, output_cube_spec, output_back_emission, output_transmission, output_lambs, \
 					debug_plots=debug_plots, output_file=base_filename)
 	head['BUNIT'] = "electron"
-	
+
+	flux_psfcore_switch = input_parameters["flux_psfcore"]
 	
 	# Generate noiseless outputs
 	# - object + background
@@ -658,8 +659,11 @@ def main(input_parameters):
 	flux_cal_star_photons = flux_cal_star/en2ph_conv_fac #photon/s/cm2/um
 
 	# Calculate the flux in the PSF core 
-	peak_psf = np.max(psf_internal)
-	flux_fraction_psf_core = np.sum(psf_internal[psf_internal > 0.5*peak_psf])
+	if flux_psfcore_switch ==True:
+		peak_psf = np.max(psf_internal)
+		flux_fraction_psf_core = np.sum(psf_internal[psf_internal > 0.5*peak_psf])
+	else:
+		flux_fraction_psf_core = 1.0
 
 	#flux_cal_star_electrons = flux_cal_star_photons*channel_width*config_data["telescope"]["area"]*np.median(output_transmission)*flux_fraction_psf_core # electron/s
 	flux_cal_star_electrons = flux_cal_star_photons * channel_width * config_data["telescope"]["area"] * output_transmission * flux_fraction_psf_core  # electron/s

@@ -92,6 +92,7 @@ if __name__ == "__main__":
 				Parameter("n_cpus", "Number of processors", type=int, default = get_cpu_count()),
 				Parameter("spectral_sampling", "Internal spectral oversampling factor", type=float, default = -1),
 				Parameter("spatial_sampling", "Internal spatial oversampling factor", type=float, default = -1),
+				Parameter("flux_psfcore", "Using PSF Core for flux calibration", default="False", choices=["True", "False"]),
 			  ]
 	
 	# Define argument parser
