@@ -350,7 +350,7 @@ if __name__ == "__main__":
 				panel_misc.add_field("Internal oversampling:", None)
 				create_field("spectral_sampling", panel_misc.add_field("   Spectral (default = -1)", Entry))
 				create_field("spatial_sampling", panel_misc.add_field("   Spatial (default = -1)", Entry))
-
+				create_field("flux_psfcore", panel_misc.add_field("Flux PSF core calib", Checkbutton))
 
 				def OnClick():
 					input_parameters["config_file"] = "GUI"
