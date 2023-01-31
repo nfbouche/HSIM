@@ -661,7 +661,9 @@ def main(input_parameters):
 	peak_psf = np.max(psf_internal)
 	flux_fraction_psf_core = np.sum(psf_internal[psf_internal > 0.5*peak_psf])
 
-	flux_cal_star_electrons = flux_cal_star_photons*channel_width*config_data["telescope"]["area"]*np.median(output_transmission)*flux_fraction_psf_core # electron/s 
+	#flux_cal_star_electrons = flux_cal_star_photons*channel_width*config_data["telescope"]["area"]*np.median(output_transmission)*flux_fraction_psf_core # electron/s
+	flux_cal_star_electrons = flux_cal_star_photons * channel_width * config_data["telescope"]["area"] * output_transmission * flux_fraction_psf_core  # electron/s
+
 	factor_calibration = flux_cal_star/np.median(flux_cal_star_electrons) # erg/s/cm2/um / (electron/s)
 	
 	outFile_flux_cal_noiseless = base_filename + "_noiseless_obj_flux_cal.fits"
