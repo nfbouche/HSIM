@@ -691,7 +691,7 @@ def main(input_parameters):
 		save_fits_cube(outFile_ddetector_thermal, noise_cube_thermal, "detector thermal noise variance", head)
 	
 	# Calculate 5-sigma sensitivity
-	sens_5sigma = 5.*np.median(noise_cube_total)/DIT*factor_calibration # erg/s/cm2/um
+	sens_5sigma = 5.*np.median(noise_cube_total)/DIT*np.median(factor_calibration) # erg/s/cm2/um
 	lcentral = np.median(output_lambs) # micron
 	fnu = sens_5sigma*lcentral**2/(const.c.value*1e6) # erg/s/cm2/Hz
 	sens_ABmag = -2.5*np.log10(fnu/3631./1e-23) # AB mag
