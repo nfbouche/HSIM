@@ -676,8 +676,8 @@ def main(input_parameters):
 	
 	
 	head['BUNIT'] = "erg/s/cm2/um/arcsec2"
-	save_fits_cube(outFile_flux_cal_noiseless, output_cube_spec_wo_back/DIT*factor_calibration/spaxel_area, "Flux cal Noiseless O", head)
-	save_fits_cube(outFile_flux_cal_reduced, sim_reduced/(NDIT*DIT)*factor_calibration/spaxel_area, "Flux cal Reduced (O+B1+Noise1) - (B2+Noise2)", head)
+	save_fits_cube(outFile_flux_cal_noiseless, output_cube_spec_wo_back/DIT*factor_calibration[:,np.newaxis,np.newaxis]/spaxel_area, "Flux cal Noiseless O", head)
+	save_fits_cube(outFile_flux_cal_reduced, sim_reduced/(NDIT*DIT)*factor_calibration[:,np.newaxis,np.newaxis]/spaxel_area, "Flux cal Reduced (O+B1+Noise1) - (B2+Noise2)", head)
 	
 	if det_switch == True:
 		save_fits_cube(outFile_alldets, sim_det_systematics1, "All simulated detectors", head)
