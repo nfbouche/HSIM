@@ -58,8 +58,9 @@ def main(input_parameters):
 		'detector_tmp_path':  Directory to save interim detector files
 		'telescope_temp': Telescope temperature [K]
 		'adr': Boolean - turn ADR on or off
-		'mcp': Boolean - Use minimum compliant instrument
-
+		'mci': Boolean - Use minimum compliant instrument
+		'detector': Near-IR detector performance
+		
 		'noise_seed': 100,
 		'config_file': configuration file
 		'debug': keep debug plots and all noise outputs
@@ -87,11 +88,13 @@ def main(input_parameters):
 			Conf('Extra jitter', 'HSM_JITT', 'extra_jitter'),
 			Conf('Telescope temperature [K]', 'HSM_TEMP', 'telescope_temp'),
 			Conf('FPRS temperature [C]', 'HSM_FPRS', 'fprs_temp'),
+			Conf('Scattered background [%]', 'HSM_SCSK', 'scattered_sky'),
 			Conf('Moon', 'HSM_MOON', 'moon_illumination'),
 			Conf('ADR', 'HSM_ADR', 'adr'),
 		    Conf('Trimmed', 'HSM_TRIM', 'detector_trim'),
-			Conf('MCP', 'HSM_MCP', 'mcp'),
-			Conf('Detectors', 'HSM_DET', 'detector_systematics'),
+		    Conf('MCI', 'HSM_MCI', 'mci'),
+			Conf('Near-IR detector performace', 'HSM_DETP', 'detector'),
+			Conf('Detector systematics', 'HSM_DET', 'detector_systematics'),
 			Conf('Seed', 'HSM_SEED', 'noise_seed'),
 			Conf('AO', 'HSM_AO', 'ao_mode'),
 			Conf('No. of processes', 'HSM_NPRC', 'n_cpus'),
@@ -106,7 +109,7 @@ def main(input_parameters):
 	# change type to bool
 	str2bool("debug")
 	str2bool("adr")
-	str2bool("mcp")
+	str2bool("mci")
 	str2bool("detector_systematics")
 	str2bool("detector_trim")
 
@@ -141,6 +144,32 @@ def main(input_parameters):
 	hsimlog = HSIMLoggingHandler()
 	logger.addHandler(hsimlog)
 
+
+	if input_parameters["mci"]:
+		logging.info("mci: forcing air mass = 1.3 = 40deg")
+		input_parameters["air_mass"] = 1.3
+		if input_parameters["ao_mode"] == "LTAO":
+			input_parameters["ao_mode"] = "MCI_LTAO"
+		elif input_parameters["ao_mode"] == "SCAO":
+			input_parameters["ao_mode"] = "MCI_SCAO"
+		else:
+			logging.error("No valid AO mode for MCI.")
+			return
+
+
+	if input_parameters["detector_systematics"] == True:
+		simulation_conf.append(Conf('Detectors tmp path', 'HSM_DDIR', 'detector_tmp_path'))
+
+	if input_parameters["ao_mode"] == "LTAO":
+		simulation_conf.append(Conf('LTAO star H mag', 'HSM_AOMA', 'ao_star_hmag'))
+		simulation_conf.append(Conf('LTAO star H mag', 'HSM_AODI', 'ao_star_distance'))
+	elif input_parameters["ao_mode"] == "HCAO":
+		simulation_conf.append(Conf('HC apodizer', 'HSM_HCAP', 'hc_apodizer'))
+		simulation_conf.append(Conf('HC mask', 'HSM_HCMK', 'hc_fp_mask'))
+	elif input_parameters["ao_mode"] == "User":
+		simulation_conf.append(Conf('User defined PSF file', 'HSM_UPSF', 'user_defined_psf'))
+
+
 	# Check that the 60x60 and 120x60 are only used with the V+R grating
 	#if input_parameters["spaxel_scale"] in ["60x60", "120x60"] and input_parameters["grating"] != "V+R":
 	#	logging.error(input_parameters["spaxel_scale"] + ' is only available for the V+R grating. ')
@@ -157,7 +186,7 @@ def main(input_parameters):
 		if input_parameters["grating"] in ["V+R", "Iz", "z-high"]:
 			logging.error("V+R, Iz, and z-high gratings are not compatible with the HCAO mode.")
 			return
-		
+
 		if input_parameters["adr"]:
 			logging.warning("Disabling standard ADR simulation for HCAO")
 			input_parameters["adr"] = False
@@ -221,6 +250,9 @@ def main(input_parameters):
 			logging.info("# start configuration file")
 		
 	logging.info("# end configuration file")
+
+	#
+	logging.info("Telescope area = "+ str(get_telescope_area(input_parameters["grating"])) + " m2")
 
 	#
 	np.random.seed(input_parameters["noise_seed"])
@@ -320,8 +352,8 @@ def main(input_parameters):
 	spaxel_area = spax_scale.xscale/1000.*spax_scale.yscale/1000. # arcsec2
 	channel_width = new_lamb_per_pix # micron
 	
-	output_cube_spec = output_cube_spec*spaxel_area*channel_width*config_data["telescope"]["area"]
-	output_back_emission = output_back_emission*spaxel_area*channel_width*config_data["telescope"]["area"]
+	output_cube_spec = output_cube_spec*spaxel_area*channel_width*get_telescope_area(input_parameters["grating"])
+	output_back_emission = output_back_emission*spaxel_area*channel_width*get_telescope_area(input_parameters["grating"])
 	head['BUNIT'] = "photon"
 	
 	# 6 - Detector
@@ -336,7 +368,7 @@ def main(input_parameters):
 	if (det_switch == True or det_trim == True) and grating != "V+R":
 		logging.info("Trimming datacubes to correct size")
 		output_cube_spec = trim_cube(output_cube_spec, verbose=True)
-	elif (det_switch == True or det_trim == True) and grating == "V+R":
+	elif det_switch == True and grating == "V+R":
 		logging.warning("IR detector systematics selected for visible grating. Ignoring detector systematics.")
 		det_switch = False
 	
@@ -379,8 +411,9 @@ def main(input_parameters):
 	sim_object_plus_back = np.random.poisson(abs(output_cube_spec*NDIT)).astype(np.float32)
 	# Apply crosstalk only to NIR detectors
 	if grating != "V+R":
-		logging.info("Applying detector crosstalk")
-		sim_object_plus_back = apply_crosstalk(sim_object_plus_back, config_data["crosstalk"])
+		if not input_parameters["mci"]:
+			logging.info("Applying detector crosstalk")
+			sim_object_plus_back = apply_crosstalk(sim_object_plus_back, config_data["crosstalk"])
 	
 	if np.sum(saturated_obj_back) > 0:
 		logging.warning(str(np.sum(saturated_obj_back)) + " pixels are saturated in the obj + back frames")
@@ -413,7 +446,8 @@ def main(input_parameters):
 	sim_back = np.random.poisson(abs(output_back_emission_cube*NDIT)).astype(np.float32)
 	# Apply crosstalk only to NIR detectors
 	if grating != "V+R":
-		sim_back = apply_crosstalk(sim_back, config_data["crosstalk"])
+		if not input_parameters["mci"]:
+			sim_back = apply_crosstalk(sim_back, config_data["crosstalk"])
 
 	if np.sum(saturated_back) > 0:
 		logging.warning(str(np.sum(saturated_back)) + " pixels are saturated in the back frames")
@@ -450,8 +484,13 @@ def main(input_parameters):
 	logging.info("Pipeline interpolation effects")
 	# Convolve the reduced cube with a 1pix FWHM Gaussian to account for the 
 	# interpolation during the data reduction
-	sigma = 1./2.35482 # pix
-	kernel_size = 5
+	if input_parameters["mci"]:
+		sigma = 1.325/2.35482 # 5.3mas = 1.325 pix
+		kernel_size = 6
+	else:
+		sigma = 1./2.35482 # pix
+		kernel_size = 5
+
 	Gauss2D = lambda x, y: np.exp(-(x**2 + y**2)/(2.*sigma**2))
 	xgrid = np.linspace(1, kernel_size, kernel_size) - kernel_size*0.5 - 0.5
 	ygrid = np.linspace(1, kernel_size, kernel_size) - kernel_size*0.5 - 0.5
@@ -523,21 +562,27 @@ def main(input_parameters):
 		# b. Telescope background emission
 		w, e = np.loadtxt(base_filename + "_tel_em.txt", unpack=True)
 		plt.plot(w, e*ph2en_conv_fac, label="telescope", color=colors[-2])
+		
+		if not input_parameters["mci"]:
+			# HARMONI parts
+			total_instrument_em = np.zeros_like(lambs_extended)
+			total_instrument_tr = np.ones_like(lambs_extended)
+			harmoni_files_em = sorted(glob.glob(base_filename + "_HARMONI_*_em.txt"))
 
-		# HARMONI parts
-		total_instrument_em = np.zeros_like(lambs_extended)
-		total_instrument_tr = np.ones_like(lambs_extended)
-		harmoni_files_em = sorted(glob.glob(base_filename + "_HARMONI_*_em.txt"))
+			for harmoni_file, color in zip(harmoni_files_em, colors):
+				# Read part emission
+				w, e = np.loadtxt(harmoni_file, unpack=True)
+				m = re.search('.+HARMONI_(.+)_em.txt', harmoni_file)
+				# and throughput
+				w, t = np.loadtxt(base_filename + "_HARMONI_" + m.group(1) + "_tr.txt", unpack=True)
+				plt.plot(w, e/total_instrument_tr*ph2en_conv_fac, label=m.group(1), color=color, ls="--", lw=1.2)
+				total_instrument_em = total_instrument_em*t + e
+				total_instrument_tr = total_instrument_tr*t
 
-		for harmoni_file, color in zip(harmoni_files_em, colors):
-			# Read part emission
-			w, e = np.loadtxt(harmoni_file, unpack=True)
-			m = re.search('.+HARMONI_(.+)_em.txt', harmoni_file)
-			# and throughput
-			w, t = np.loadtxt(base_filename + "_HARMONI_" + m.group(1) + "_tr.txt", unpack=True)
-			plt.plot(w, e/total_instrument_tr*ph2en_conv_fac, label=m.group(1), color=color, ls="--", lw=1.2)
-			total_instrument_em = total_instrument_em*t + e
-			total_instrument_tr = total_instrument_tr*t
+		else:
+			# mci estimate
+			w, total_instrument_em = np.loadtxt(base_filename + "_HARMONI_mci_em.txt", unpack=True)
+			w, total_instrument_tr = np.loadtxt(base_filename + "_HARMONI_mci_tr.txt", unpack=True)
 
 		plt.plot(w, total_instrument_em/total_instrument_tr*ph2en_conv_fac, label="HARMONI total", color="red")
 
@@ -553,6 +598,10 @@ def main(input_parameters):
 		plt.yscale("log")
 		plt.savefig(base_filename + "_total_em.pdf")
 
+
+
+		## Transmission
+
 		plt.clf()
 		w, e = np.loadtxt(base_filename + "_sky_tr.txt", unpack=True)
 		plt.plot(w, e, label="sky", color=colors[-1])
@@ -566,15 +615,20 @@ def main(input_parameters):
 			return
 		total_tr *= e
 		
-		total_instrument_tr = np.ones_like(total_tr)
-		# HARMONI parts
-		harmoni_files_tr = sorted(glob.glob(base_filename + "_HARMONI_*tr.txt"))
-		for harmoni_file, color in zip(harmoni_files_tr, colors):
-			w, e = np.loadtxt(harmoni_file, unpack=True)
-			m = re.search('.+HARMONI_(.+)_tr.txt', harmoni_file)
-			plt.plot(w, e, label=m.group(1), color=color, ls="--", lw=1.2)
-			total_instrument_tr *= e
-			total_tr *= e
+		if not input_parameters["mci"]:
+			total_instrument_tr = np.ones_like(total_tr)
+			# HARMONI parts
+			harmoni_files_tr = sorted(glob.glob(base_filename + "_HARMONI_*tr.txt"))
+			for harmoni_file, color in zip(harmoni_files_tr, colors):
+				w, e = np.loadtxt(harmoni_file, unpack=True)
+				m = re.search('.+HARMONI_(.+)_tr.txt', harmoni_file)
+				plt.plot(w, e, label=m.group(1), color=color, ls="--", lw=1.2)
+				total_instrument_tr *= e
+				total_tr *= e
+		else:
+			# mci estimate
+			w, total_instrument_tr = np.loadtxt(base_filename + "_HARMONI_mci_tr.txt", unpack=True)
+			total_tr *= total_instrument_tr
 		
 		plt.plot(w, total_instrument_tr, label="HARMONI total", color="red")
 		
@@ -644,9 +698,10 @@ def main(input_parameters):
 	
 	# Apply crosstalk to the noiseless cubes
 	if grating != "V+R":
-		output_cube_spec = apply_crosstalk(output_cube_spec, config_data["crosstalk"])
-		output_back_emission_cube = apply_crosstalk(output_back_emission_cube, config_data["crosstalk"])
-		output_cube_spec_wo_back = apply_crosstalk(output_cube_spec_wo_back, config_data["crosstalk"])
+		if not input_parameters["mci"]:
+			output_cube_spec = apply_crosstalk(output_cube_spec, config_data["crosstalk"])
+			output_back_emission_cube = apply_crosstalk(output_back_emission_cube, config_data["crosstalk"])
+			output_cube_spec_wo_back = apply_crosstalk(output_cube_spec_wo_back, config_data["crosstalk"])
 	
 	save_fits_cube(outFile_noiseless_object_plus_back, output_cube_spec*NDIT, "Noiseless O+B", head)
 	save_fits_cube(outFile_noiseless_background, output_back_emission_cube*NDIT, "Noiseless B", head)
@@ -674,12 +729,9 @@ def main(input_parameters):
 	else:
 		flux_fraction_psf_core = 1.0
 
-	# flux_cal_star_electrons = flux_cal_star_photons*channel_width*config_data["telescope"]["area"]*np.median(output_transmission)*flux_fraction_psf_core # electron/s
-	flux_cal_star_electrons = flux_cal_star_photons * channel_width * config_data["telescope"]["area"] * output_transmission * flux_fraction_psf_core  # electron/s
-
-	# factor_calibration = flux_cal_star / np.median(flux_cal_star_electrons)  # erg/s/cm2/um / (electron/s)
-	factor_calibration = flux_cal_star / flux_cal_star_electrons  # erg/s/cm2/um / (electron/s)
-
+	flux_cal_star_electrons = flux_cal_star_photons*channel_width*get_telescope_area(input_parameters["grating"])*output_transmission*flux_fraction_psf_core # electron/s
+	factor_calibration = flux_cal_star/flux_cal_star_electrons # erg/s/cm2/um / (electron/s)
+	
 	# Reshape factor to match output cube shape
 	# Miguel :
 	# output_shape = output_cube_spec_wo_back.shape
@@ -711,7 +763,7 @@ def main(input_parameters):
 	fnu = sens_5sigma*lcentral**2/(const.c.value*1e6) # erg/s/cm2/Hz
 	sens_ABmag = -2.5*np.log10(fnu/3631./1e-23) # AB mag
 	
-	logging.info("Sensitivity point-source 5sigma = {:.2f} mag = {:.2e} erg/s/cm2/um at {:.3f} um".format(sens_ABmag, sens_5sigma, lcentral))
+	logging.info("Sensitivity 5sigma = {:.2f} mag = {:.2e} erg/s/cm2/um at {:.3f} um".format(sens_ABmag, sens_5sigma, lcentral))
 
 	noise_total = np.max(noise_cube_object) + np.median(n_observations*noise_cube_back + n_observations*noise_cube_dark + n_observations*noise_cube_thermal + n_observations*noise_cube_read_noise**2)
 	
@@ -723,7 +775,8 @@ def main(input_parameters):
 
 	# Save transmission with crosstalk
 	if grating != "V+R":
-		output_transmission = apply_crosstalk_1d(output_transmission, config_data["crosstalk"])
+		if not input_parameters["mci"]:
+			output_transmission = apply_crosstalk_1d(output_transmission, config_data["crosstalk"])
 	
 	np.savetxt(base_filename + "_total_tr.txt", np.c_[output_lambs, output_transmission], comments="#", header="\n".join([
 		'TYPE: Total transmission.',
@@ -759,58 +812,64 @@ def main(input_parameters):
 	# at the output image center after rebining
 	psf_oversampling = int(round(min([psf_info.xscale, psf_info.yscale])/psf_info.psfscale))
 	psf_spaxel_shape = psf_info.psfsize//psf_oversampling + 1
-	
-	tmp = np.zeros((psf_spaxel_shape*psf_oversampling, psf_spaxel_shape*psf_oversampling))
+
 	psfcenter = psf_info.psfsize//2 + 1
 	psfcenter_offset = psfcenter % psf_oversampling
-	
 	x0 = psf_oversampling//2 + 1 - psfcenter_offset
-	tmp[x0:x0 + psf_info.psfsize, x0:x0 + psf_info.psfsize] = psf_internal[:, :]
-	
-	psf_spaxel_shape_x, psf_spaxel_shape_y = psf_spaxel_shape, psf_spaxel_shape
-	
-	psf_spaxel = rebin_psf(tmp, (psf_spaxel_shape, psf_spaxel_shape))
-	
-	if input_parameters["spaxel_scale"] == "30x60":
-		# an extra rebin is needed for the y axis
-		psf_spaxel_shape_y = psf_spaxel_shape_y//2
-	elif input_parameters["spaxel_scale"] == "120x60":
-		# an extra rebin is needed for the x axis
-		psf_spaxel_shape_x = psf_spaxel_shape_x//2
-	
-	psf_spaxel = frebin2d(tmp, (psf_spaxel_shape_x, psf_spaxel_shape_y))
-	psf_spaxel = psf_spaxel/np.sum(psf_spaxel)*np.sum(tmp) # Normalize PSF
-	
-	# center PSF on the output array
-	center_x_output = (output_cube_spec.shape[2] - 1) // 2 - (output_cube_spec.shape[2] % 2 - 1)
-	center_y_output = (output_cube_spec.shape[1] - 1) // 2 - (output_cube_spec.shape[1] % 2 - 1)
-	center_x_psf = (psf_spaxel.shape[1] - 1) // 2 - (psf_spaxel.shape[1] % 2 - 1)
-	center_y_psf = (psf_spaxel.shape[0] - 1) // 2 - (psf_spaxel.shape[0] % 2 - 1)
 
-	# adjust y axis
-	tmp = np.zeros((output_cube_spec.shape[1], psf_spaxel.shape[1]))
-	if tmp.shape[0] > psf_spaxel.shape[0]:
-		yi = center_y_output - center_y_psf
-		tmp[yi:yi+psf_spaxel.shape[0], :] = psf_spaxel
-	else:
-		yi = center_y_psf - center_y_output
-		tmp[:, :] = psf_spaxel[yi:yi+tmp.shape[0], :]
-	psf_spaxel = tmp
+	def save_rebin_psf(psf, psf_spaxel_shape, suffix):
+		psf_spaxel_shape_x, psf_spaxel_shape_y = psf_spaxel_shape, psf_spaxel_shape
+		tmp = np.zeros((psf_spaxel_shape*psf_oversampling, psf_spaxel_shape*psf_oversampling))
+		tmp[x0:x0 + psf_info.psfsize, x0:x0 + psf_info.psfsize] = psf[:, :]
 
-	# adjust x axis
-	tmp = np.zeros((output_cube_spec.shape[1], output_cube_spec.shape[2]))
-	if tmp.shape[1] > psf_spaxel.shape[1]:
-		xi = center_x_output - center_x_psf
-		tmp[:, xi:xi+psf_spaxel.shape[1]] = psf_spaxel
-	else:
-		xi = center_x_psf - center_x_output
-		tmp[:, :] = psf_spaxel[:, xi:xi+tmp.shape[1]]
-	psf_spaxel = tmp
+		psf_spaxel = rebin_psf(tmp, (psf_spaxel_shape, psf_spaxel_shape))
+
+		if input_parameters["spaxel_scale"] == "30x60":
+			# an extra rebin is needed for the y axis
+			psf_spaxel_shape_y = psf_spaxel_shape_y//2
+		elif input_parameters["spaxel_scale"] == "120x60":
+			# an extra rebin is needed for the x axis
+			psf_spaxel_shape_x = psf_spaxel_shape_x//2
+
+		psf_spaxel = frebin2d(tmp, (psf_spaxel_shape_x, psf_spaxel_shape_y))
+		psf_spaxel = psf_spaxel/np.sum(psf_spaxel)*np.sum(tmp) # Normalize PSF
+
+		# center PSF on the output array
+		center_x_output = (output_cube_spec.shape[2] - 1) // 2 - (output_cube_spec.shape[2] % 2 - 1)
+		center_y_output = (output_cube_spec.shape[1] - 1) // 2 - (output_cube_spec.shape[1] % 2 - 1)
+		center_x_psf = (psf_spaxel.shape[1] - 1) // 2 - (psf_spaxel.shape[1] % 2 - 1)
+		center_y_psf = (psf_spaxel.shape[0] - 1) // 2 - (psf_spaxel.shape[0] % 2 - 1)
+
+		# adjust y axis
+		tmp = np.zeros((output_cube_spec.shape[1], psf_spaxel.shape[1]))
+		if tmp.shape[0] > psf_spaxel.shape[0]:
+			yi = center_y_output - center_y_psf
+			tmp[yi:yi+psf_spaxel.shape[0], :] = psf_spaxel
+		else:
+			yi = center_y_psf - center_y_output
+			tmp[:, :] = psf_spaxel[yi:yi+tmp.shape[0], :]
+		psf_spaxel = tmp
+
+		# adjust x axis
+		tmp = np.zeros((output_cube_spec.shape[1], output_cube_spec.shape[2]))
+		if tmp.shape[1] > psf_spaxel.shape[1]:
+			xi = center_x_output - center_x_psf
+			tmp[:, xi:xi+psf_spaxel.shape[1]] = psf_spaxel
+		else:
+			xi = center_x_psf - center_x_output
+			tmp[:, :] = psf_spaxel[:, xi:xi+tmp.shape[1]]
+		psf_spaxel = tmp
+
+		head_PSF['CDELT1'] = spax_scale.xscale
+		head_PSF['CDELT2'] = spax_scale.yscale
+		save_fits_cube(base_filename + "_" + suffix + ".fits", psf_spaxel, suffix, head_PSF)
 	
-	head_PSF['CDELT1'] = spax_scale.xscale
-	head_PSF['CDELT2'] = spax_scale.yscale
-	save_fits_cube(base_filename + "_PSF.fits", psf_spaxel, "PSF", head_PSF)
-	
+
+	save_rebin_psf(psf_internal, psf_spaxel_shape, "PSF")
+	if input_parameters["mci"]:
+		from src.modules.create_psf import onlyAO_psf
+		save_rebin_psf(onlyAO_psf, psf_spaxel_shape, "PSF_AO")
+
 
 	if hsimlog.count_error == 0 and hsimlog.count_warning == 0:
 		logging.info('Simulation OK - ' + str(hsimlog.count_error) + " errors and " + str(hsimlog.count_warning) + " warnings")
