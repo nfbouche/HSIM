@@ -54,6 +54,7 @@ def main(input_parameters):
 		
 		'extra_jitter': Residual telescope jitter. 1 or 2 x separated numbers [mas]
 		'detector_systematics': Boolean - use detector systematics
+		'detector_trim': Boolean - trim to detector size
 		'detector_tmp_path':  Directory to save interim detector files
 		'telescope_temp': Telescope temperature [K]
 		'adr': Boolean - turn ADR on or off
@@ -88,6 +89,7 @@ def main(input_parameters):
 			Conf('FPRS temperature [C]', 'HSM_FPRS', 'fprs_temp'),
 			Conf('Moon', 'HSM_MOON', 'moon_illumination'),
 			Conf('ADR', 'HSM_ADR', 'adr'),
+		    Conf('Trimmed', 'HSM_TRIM', 'detector_trim'),
 			Conf('MCP', 'HSM_MCP', 'mcp'),
 			Conf('Detectors', 'HSM_DET', 'detector_systematics'),
 			Conf('Seed', 'HSM_SEED', 'noise_seed'),
@@ -106,7 +108,8 @@ def main(input_parameters):
 	str2bool("adr")
 	str2bool("mcp")
 	str2bool("detector_systematics")
-	
+	str2bool("detector_trim")
+
 	if input_parameters["detector_systematics"] == True:
 		simulation_conf.append(Conf('Detectors tmp path', 'HSM_DDIR', 'detector_tmp_path'))
 	
@@ -139,15 +142,15 @@ def main(input_parameters):
 	logger.addHandler(hsimlog)
 
 	# Check that the 60x60 and 120x60 are only used with the V+R grating
-	if input_parameters["spaxel_scale"] in ["60x60", "120x60"] and input_parameters["grating"] != "V+R":
-		logging.error(input_parameters["spaxel_scale"] + ' is only available for the V+R grating. ')
-		return
-	
+	#if input_parameters["spaxel_scale"] in ["60x60", "120x60"] and input_parameters["grating"] != "V+R":
+	#	logging.error(input_parameters["spaxel_scale"] + ' is only available for the V+R grating. ')
+	#	return
+
 	# Check HCAO configuration
 	if input_parameters["ao_mode"] == "HCAO":
-		
+
 		logging.warning("HCAO mode is experimental. Please use with caution the results.")
-		
+
 		if input_parameters["spaxel_scale"] !=  "4x4":
 			logging.error("4x4 spaxel scale must be used for the HCAO mode.")
 			return
@@ -155,14 +158,10 @@ def main(input_parameters):
 			logging.error("V+R, Iz, and z-high gratings are not compatible with the HCAO mode.")
 			return
 		
-		if input_parameters["exposure_time"]*input_parameters["n_exposures"] > 10.:
-			logging.warning("The total exposure time (DIT*NDIT) should be < 10s since field rotation is not simulated by HSIM")
-		
-		
 		if input_parameters["adr"]:
 			logging.warning("Disabling standard ADR simulation for HCAO")
 			input_parameters["adr"] = False
-		
+
 	# Get oversampling factor
 	# spectral axis
 	if input_parameters["spectral_sampling"] == -1: # Use default oversampling factor
@@ -285,7 +284,7 @@ def main(input_parameters):
 	
 	if fpm_mask is not None:
 		fpm_mask_rebin = frebin2d(fpm_mask, (out_size_x, out_size_y))
-	
+
 	# and update header
 	head['CDELT1'] = spax_scale.xscale*np.sign(head['CDELT1'])
 	head['CDELT2'] = spax_scale.yscale*np.sign(head['CDELT2'])
@@ -332,11 +331,12 @@ def main(input_parameters):
 	#	- Thermal background
 	grating = input_parameters["grating"]
 	det_switch = input_parameters["detector_systematics"]
-	# Cut cubes to correct size if using detector systematics and generate detectors 
-	if det_switch == True and grating != "V+R":
+	det_trim  = input_parameters["detector_trim"]
+	# Cut cubes to correct size if using detector systematics and generate detectors
+	if (det_switch == True or det_trim == True) and grating != "V+R":
 		logging.info("Trimming datacubes to correct size")
 		output_cube_spec = trim_cube(output_cube_spec, verbose=True)
-	elif det_switch == True and grating == "V+R":
+	elif (det_switch == True or det_trim == True) and grating == "V+R":
 		logging.warning("IR detector systematics selected for visible grating. Ignoring detector systematics.")
 		det_switch = False
 	
@@ -357,12 +357,12 @@ def main(input_parameters):
 	output_back_emission = output_back_emission.astype(np.float32)
 	output_back_emission.shape = (len(output_back_emission), 1, 1)
 	output_back_emission_cube = np.zeros_like(output_cube_spec) + output_back_emission
-	if det_switch == True:
+	if (det_switch == True or det_trim == True):
 		output_back_emission_cube = trim_cube(output_back_emission_cube)
-		
+
 	if input_parameters["ao_mode"] == "HCAO":
 		output_back_emission_cube *= fpm_mask_rebin
-		
+
 	# - mask saturated pixels
 	output_back_emission_cube, saturated_back = mask_saturated_pixels(output_back_emission_cube, grating)
 	
@@ -819,7 +819,7 @@ def main(input_parameters):
 	
 	
 	logger.removeHandler(std)
-	
+
 	return
 	
 

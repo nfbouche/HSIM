@@ -65,9 +65,11 @@ config_data = {
 	'spaxel_scale': {'4x4':SpaxelScaleInfo(4., 4., 0.8, 1250),
 		  '10x10':SpaxelScaleInfo(10., 10., 2., 800),
 		  '20x20':SpaxelScaleInfo(20., 20., 4., 580),
+		  '30x30':SpaxelScaleInfo(30., 30., 6., 400),
 		  '30x60':SpaxelScaleInfo(30., 60., 6., 400),
 		  '60x60':SpaxelScaleInfo(60., 60., 6., 400),
-		  '120x60':SpaxelScaleInfo(120., 60., 6., 400)
+		  '120x60':SpaxelScaleInfo(120., 60., 6., 400),
+		  '120x120':SpaxelScaleInfo(120., 120., 6., 400)
 		  },
 	
 	
@@ -77,11 +79,13 @@ config_data = {
 	'dynamic_instrument_psf': 4.8,
 	'static_instrument_psf': {'4x4': 3.,
     		  '10x10':10.,
-		  '20x20':20.,
-		  '30x60':30.,
-		  '60x60':30.,
-		  '120x60':30.
-		},
+		  '20x20': 20.,
+		  '30x30': 30.,
+		  '30x60': 30.,
+		  '60x60': 30.,
+		  '120x60': 30.,
+		  '120x120': 30.
+		  },
 
 	#Each PSD file containts 1 seeing  [0.43] and 1 zenith angle [25]
 	'PSD_file':{"LTAO":"psd_ltao_hsim_6LGS_cn2_310.fits", 
